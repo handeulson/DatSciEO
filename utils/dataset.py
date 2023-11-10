@@ -3,6 +3,7 @@ import os
 import glob
 import re
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from torch.utils.data import Dataset
@@ -34,8 +35,8 @@ class TreeClassifDataset(Dataset):
         self.class_files = glob.glob(search)
 
         # collect information about the dataset and build an index
-        self.classes = [re.search(f"([A-Z][a-z]+_[a-z]+)_{identifier}.geojson", fn_).group(1) for fn_ in self.class_files]
-        self.samples_per_class = {cn_: self._count_samples(fn_) for cn_, fn_ in zip(self.classes, self.class_files)}
+        self.classes = [self.file_to_classname(fn_) for fn_ in self.class_files]
+        self.samples_per_class = {cn_: self.count_samples(fn_) for cn_, fn_ in zip(self.classes, self.class_files)}
         self._cumulative = np.cumsum(list(self.samples_per_class.values()))    
 
         if verbose: print(str(self))
@@ -46,14 +47,12 @@ class TreeClassifDataset(Dataset):
         if index >= len(self): raise IndexError(f"Index {index} too large for dataset of length {len(self)}.")
         
         # determine which file to open
-        idx_offsets = np.roll(self._cumulative, 1)
-        idx_offsets[0] = 0
-        larger = self._cumulative > index
-        file_idx = np.argmax(larger)
+        file_idx, file = self.index_to_file(index, return_index=True)
 
         # determine which feature to load from the file
+        idx_offsets = np.roll(self._cumulative, 1)
+        idx_offsets[0] = 0
         rel_idx = index - idx_offsets[file_idx]
-        file = self.class_files[file_idx]
 
         # load feature
         with open(file) as f: collection = json.load(f)
@@ -73,7 +72,8 @@ class TreeClassifDataset(Dataset):
             print("idx:", index, "file idx:", file_idx, "file:", file, "rel idx", rel_idx)
             print("selected feature:", feature["properties"]["B11"][0])
 
-        return data
+        # return data as a numpy array and the class label, which is equal to file_idx
+        return data, file_idx
 
     def __str__(self):
         s = f"Dataset found for identifier '{self.identifier}':\n\t" + "\n\t".join(self.class_files)
@@ -82,21 +82,54 @@ class TreeClassifDataset(Dataset):
         s += f"\n  -> Samples: {len(self)}"
         return s
 
-    def _count_samples(self, filename):
+
+    def index_to_file(self, index, return_index=False):
+        larger = self._cumulative > index
+        file_idx = np.argmax(larger)
+        file = self.class_files[file_idx]
+
+        return (file_idx, file) if return_index else file
+
+    def file_to_classname(self, filename):
+        classname = re.search(f"([A-Z][a-z]+_[a-z]+)_{self.identifier}.geojson", filename).group(1)
+        return classname
+
+    def label_to_classname(self, label):
+        return self.file_to_classname(self.class_files[label])
+
+
+    def count_samples(self, filename):
         with open(filename) as f:
             data = json.load(f)
         return len(data["features"])
+
+
+    def visualize_samples(self, indices, subplots, band_indices=[0, 1, 2], **kwargs):
+        fig, axs = plt.subplots(*subplots, **kwargs)
+        fig.suptitle(f"Samples {list(indices)}")
+        print("shape axs", axs)
+        axs = axs.flatten()
+
+        for i_, ax_ in zip(indices, axs):
+            data, label = self[i_]
+            ax_.imshow(data[:, :, band_indices])
+            ax_.set_title(f"{i_}: {self.label_to_classname(label)}")
         
-        
+        return fig
+
+
 # test dataset
 if __name__ == "__main__":
     ds = TreeClassifDataset("data", "1102")
     print("len ds:", len(ds))
-    sample00 = ds[0]
+    sample00, label00 = ds[0]
     print(sample00, sample00.shape, sep="\n")
-    # sample0l = ds[980]
-    # sample10 = ds[981]
-    # sample1l = ds[4742]
-    # sample20 = ds[4743]
-    # sample2l = ds[4747]
-    # sampleerror = ds[4748]
+    # sample0l, label0l =  ds[980]
+    # sample10, label10 =  ds[981]
+    # sample1l, label1l =  ds[4742]
+    # sample20, label20 =  ds[4743]
+    # sample2l, label2l =  ds[4747]
+    # sampleerror, labelerror = ds[4748]
+
+    fig = ds.visualize_samples(range(4), (2,2))
+    plt.show()
