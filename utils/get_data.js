@@ -1,10 +1,11 @@
 /***        SETTINGS        ***/
 
-// specify species names to filter for, a dataset identifier for this run
-var dataset_identifier = "1102" // as per current date
-var species_names = ["Abies alba", "Picea abies"];
-var colors = ["#f3ff3c", "#ff0022"];
-var leaf_type = 111; // Code 111 means closed needleleaf forest and 114 means closed broadleaf forest
+// specify  a dataset identifier for this run
+var dataset_identifier = "1102"
+// specify species filters
+var species_names = ["Abies alba", "Picea abies", "Ulmus glabra"];
+var leaf_types = [111, 111, 114]; // Code 111 means closed needleleaf forest and 114 means closed broadleaf forest
+
 
 // specify which bands to export
 // index 1: summer, index 2: autumn, no index: spring
@@ -15,6 +16,14 @@ var Bands = ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12',
 // specify the size of the clipped patch around the "trees"
 // resulting patch will be 2*patch_size+1 in edge length (e.g. patch_size=2 -> patches of 5x5)
 var patch_size = 2;
+
+
+// specify a folder where to store the data
+var folder_name = "DatSciEOData";
+// optionally define colors for visualization for each species
+var colors = ["#f3ff3c", "#ff0022"];
+
+/*          SETTINGS END      */
 
 
 
@@ -111,44 +120,44 @@ var s2_select = s2.select(Bands)
 
 
 /***Data export***/
-// Set the patch size to 5 pixels
+// Set the patch size to N pixels
 var kernel = ee.Kernel.rectangle(patch_size, patch_size)
 var neighborImg = s2_select.neighborhoodToArray(kernel)
 print("neighborImg", neighborImg)
 
-//var day = String(new Date().toJSON().slice(0,10).replace(/-/g,'-'));
-//print("day:", day)
-//var day = "1102" // as per current date
 
-var species_name;
+var species_name, leaf_type, color;
 for (var i = 0; i < species_names.length; i++) {
   species_name = species_names[i];
-  print("current species name:", species_name)
-  // Take "Abies alba" species as example
-  // Code 111 means closed needleleaf forest and 114 means closed broadleaf forest
+  leaf_type = leaf_types[i];
+  if (i < colors.length) {
+    color = colors[i];
+  } else  {
+    color = "black"
+  }
+
+  print("current species name and leaf type:", species_name, leaf_type)
   var species = forest.filterMetadata('SPECIES NAME','equals', species_name);
   print("after species filter:", species.size())
   var species = species.filterMetadata('first','equals', leaf_type);
   print("after leaf type:", species.size());
   
   /***Visualize species samples***/
-  //Map.addLayer(species, {color: '#f3ff3c'}, species_name);
-  Map.addLayer(species, {color: colors[i], size: 1}, species_name);
+  Map.addLayer(species, {color: color}, species_name);
   
   // Clip the patch
-  //var species = "Abies_alba";
-  var samples = neighborImg.reduceRegions({
+  var data = neighborImg.reduceRegions({
     collection: species,
     reducer: ee.Reducer.first(),
     scale: 10,
     crs: 'EPSG:3035'
   });
+  print("data:", data)
   
-  var folder_name = "DatSciEOData";
   // Export to Google Drive
   var filename = species_name.replace(" ", "_") + '_' + dataset_identifier;
   Export.table.toDrive({
-      collection : samples,
+      collection : data,
       description : filename,
       //fileNamePrefix : species_name + '_' + day,
       fileNamePrefix : filename,
