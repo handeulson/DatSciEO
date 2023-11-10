@@ -2,6 +2,7 @@ import json
 import os
 import glob
 import re
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,7 +12,7 @@ from torch.utils.data import Dataset
 
 # TODO: get ID and geometry in export
 # TODO: reshape data?
-# TODO: keep all features in memory? or read from file everytime?
+# TODO: keep all features in memory? or read from file everytime? -> quite slow, replace with in memory? or preprocessing
 # TODO: how to deal with class imbalance? -> Dataloader task?
 class TreeClassifDataset(Dataset):
     def __init__(self, data_dir, identifier, verbose=False, *args, **kwargs):
@@ -37,7 +38,8 @@ class TreeClassifDataset(Dataset):
         # collect information about the dataset and build an index
         self.classes = [self.file_to_classname(fn_) for fn_ in self.class_files]
         self.samples_per_class = {cn_: self.count_samples(fn_) for cn_, fn_ in zip(self.classes, self.class_files)}
-        self._cumulative = np.cumsum(list(self.samples_per_class.values()))    
+        self.cumulative = np.cumsum(list(self.samples_per_class.values()))
+        self._create_band_index(self.class_files[0]) 
 
         if verbose: print(str(self))
 
@@ -50,7 +52,7 @@ class TreeClassifDataset(Dataset):
         file_idx, file = self.index_to_file(index, return_index=True)
 
         # determine which feature to load from the file
-        idx_offsets = np.roll(self._cumulative, 1)
+        idx_offsets = np.roll(self.cumulative, 1)
         idx_offsets[0] = 0
         rel_idx = index - idx_offsets[file_idx]
 
@@ -63,8 +65,9 @@ class TreeClassifDataset(Dataset):
         b = len(feature["properties"])                           # number of bands
         h = len(feature["properties"][property_names[0]])        # number of rows
         w = len(feature["properties"][property_names[0]][0])     # number of columns (values per row)
-        data = np.zeros((h, w, b))  # TODO: dtype?
+        data = np.full((h, w, b), np.nan)  # TODO: dtype?
         for b_, band in enumerate(feature["properties"].values()):
+            if band is None: continue       # TODO: how to handle NaN?
             for r_, row in enumerate(band):
                 data[r_, :, b_] = row
         
@@ -84,7 +87,7 @@ class TreeClassifDataset(Dataset):
 
 
     def index_to_file(self, index, return_index=False):
-        larger = self._cumulative > index
+        larger = self.cumulative > index
         file_idx = np.argmax(larger)
         file = self.class_files[file_idx]
 
@@ -97,6 +100,12 @@ class TreeClassifDataset(Dataset):
     def label_to_classname(self, label):
         return self.file_to_classname(self.class_files[label])
 
+    def _create_band_index(self, file):
+        with open(file) as f: collection = json.load(f)
+        feature = collection["features"][0]
+        self.bands = list(feature["properties"].keys())
+        self.band2index = {band_: i for (i, band_) in enumerate(self.bands)}
+        self.index2band = {i: band_ for (i, band_) in enumerate(self.bands)}
 
     def count_samples(self, filename):
         with open(filename) as f:
@@ -104,11 +113,12 @@ class TreeClassifDataset(Dataset):
         return len(data["features"])
 
 
-    def visualize_samples(self, indices, subplots, band_indices=[0, 1, 2], **kwargs):
+    def visualize_samples(self, indices, subplots, band_names=["B5", "B4", "B3"], **kwargs):
         fig, axs = plt.subplots(*subplots, **kwargs)
-        fig.suptitle(f"Samples {list(indices)}")
-        print("shape axs", axs)
-        axs = axs.flatten()
+        fig.suptitle(f"Tree Samples (bands {list(band_names)})")
+        axs = axs.flatten() if len(indices) != 1 else [axs]
+
+        band_indices = [self.band2index[b_] for b_ in band_names]
 
         for i_, ax_ in zip(indices, axs):
             data, label = self[i_]
@@ -131,5 +141,5 @@ if __name__ == "__main__":
     # sample2l, label2l =  ds[4747]
     # sampleerror, labelerror = ds[4748]
 
-    fig = ds.visualize_samples(range(4), (2,2))
+    fig = ds.visualize_samples(np.random.randint(0, len(ds)-1, 12), (3,4))
     plt.show()
