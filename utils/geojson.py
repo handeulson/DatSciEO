@@ -18,10 +18,11 @@ def print_feature_collection(fc):
     #print(features)
     #print(features[0])
     #print(properties)
-    print(features[0])
+    #print(features[0])
     print(list(properties.keys()))
     #print(list(properties.values()))
-    print(type(properties['B11']))
+    print(type(properties))
+    print(type(data))
 
 def filter_feature_collection(fc, indices):
     pass
