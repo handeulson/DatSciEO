@@ -25,7 +25,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
     bands_to_delete: band names in this list are not considered when writting the arrays to disk. DEFAULT OPTION is no bands.
 
     The arrays are written as .npy-files to disk in certain folders. The folders have the following naming convention:
-    "<tree_type>.<identifier>.<what_happens_to_nan>.<bands_to_delete>", whereas ".<bands_to_delete>" is not added for no bands.
+    "<identifier>.<what_happens_to_nan>.<bands_to_delete>", whereas ".<bands_to_delete>" is not added for no bands.
     '''
 
     # check if <what_happens_to_nan> argument contains valid element
@@ -55,12 +55,12 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
     if not tree_types:
         sys.exit(f"\nThe found geojson-files don't seem to match the standard naming convention \'<Tree>_<species>_<identifier>.geojson\'. Terminating.")
     
+    # if not existent, create folder to save numpy arrays
+    output_dir = os.path.join(data_dir, f'{identifier}.{what_happens_to_nan}{delete_bands_str}')
+    os.makedirs(output_dir, exist_ok = True)
+
     # loop over all tree type names
     for tree_type in tree_types:
-
-        # if not existent, create folder to save numpy arrays
-        output_dir = os.path.join(data_dir, f'{tree_type}.{identifier}.{what_happens_to_nan}{delete_bands_str}')
-        os.makedirs(output_dir, exist_ok = True)
 
         # open geojson-file
         file_name = os.path.join(data_dir, f'{tree_type}_{identifier}.geojson')
@@ -141,6 +141,6 @@ if __name__ == "__main__":
 
     preprocess_geojson_files(identifier, data_dir, what_happens_to_nan, bands_to_delete)
 
-    arr = np.load(r'data/Abies_alba.1102.apply_nan_mask/Abies_alba-20.npy')
+    arr = np.load(r'data/1102.apply_nan_mask/Abies_alba-20.npy')
     print(arr)
     print(arr.shape)
