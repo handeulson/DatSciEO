@@ -25,7 +25,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
     bands_to_delete: band names in this list are not considered when writting the arrays to disk. DEFAULT OPTION is no bands.
 
     The arrays are written as .npy-files to disk in certain folders. The folders have the following naming convention:
-    "<identifier>.<what_happens_to_nan>.<bands_to_delete>", whereas ".<bands_to_delete>" is not added for no bands.
+    "<identifier>_<what_happens_to_nan>_<bands_to_delete>", whereas ".<bands_to_delete>" is not added for no bands.
     '''
 
     # check if <what_happens_to_nan> argument contains valid element
@@ -39,7 +39,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
     if len(bands_to_delete) == 0:
         delete_bands_str = '' # later used for naming folder
     elif all([x in valid_bands for x in bands_to_delete]):
-        delete_bands_str = '.' + '-'.join(bands_to_delete) # later used for naming folder
+        delete_bands_str = '_' + '-'.join(bands_to_delete) # later used for naming folder
         valid_bands = [x for x in valid_bands if x not in bands_to_delete]
     else:
         sys.exit(f'\nSome given bands {bands_to_delete} are not part of the valid band names: {valid_bands}.')
@@ -56,7 +56,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
         sys.exit(f"\nThe found geojson-files don't seem to match the standard naming convention \'<Tree>_<species>_<identifier>.geojson\'. Terminating.")
     
     # if not existent, create folder to save numpy arrays
-    output_dir = os.path.join(data_dir, f'{identifier}.{what_happens_to_nan}{delete_bands_str}')
+    output_dir = os.path.join(data_dir, f'{identifier}_{what_happens_to_nan}{delete_bands_str}')
     os.makedirs(output_dir, exist_ok = True)
 
     sample_information = {} # statistical dictionary for output information
@@ -85,8 +85,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
             # nan mask is concatenated to numpy array (0 for nan, 1 for numeric value)
             # channel dimension is doubled
             if what_happens_to_nan == 'apply_nan_mask':
-                masked_array = np.ma.masked_where(~np.isnan(array), array)
-                mask = np.ma.getmaskarray(masked_array)
+                mask = (~np.isnan(array)).astype(array.dtype)
                 array = np.concatenate((array, mask), axis=2) #TODO: change numpy array dimensions from (h,w,b) to (b,h,w) for less confusing array visualization 
 
             # array is saved as .npy-file in dedicated folder
@@ -97,12 +96,13 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
         delete_information[tree_type] = amount_of_samples_deleted
         
         if verbose:
-            print(f'\n<{tree_type}> samples written to disk.')
+            print(f'\n<{tree_type}> {amount_of_samples} samples written to disk.')
 
     if verbose:
         print(f'\nIdentifier: {identifier}\nChosen processing method: {what_happens_to_nan}' +
               f'\nNot considered bands: {bands_to_delete}\nTree types considered: {tree_types}' + 
-              f'\nAmount of samples written: {sample_information}\nAmount of samples deleted:{delete_information}')
+              f'\nAmount of samples written: {sample_information}' +
+              f'\nAmount of samples deleted: {delete_information}')
             
 
 
@@ -124,7 +124,7 @@ def sample2numpy(sample: dict, bands_to_delete: list[str]) -> np.array:
     axis = 1: width
     axis = 2: channels
 
-    samples: dicctionary structure of the geojson file
+    sample: dictionary structure of the geojson file
     bands_to_delete: band names that should not be written to disk
     '''
 
