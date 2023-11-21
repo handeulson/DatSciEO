@@ -156,11 +156,12 @@ def sample2numpy(sample: dict, bands_to_delete: List[str]) -> np.array:
 if __name__ == "__main__":
     identifier = 1102
     data_dir = 'data'
-    bands_to_delete = []
-    what_happens_to_nan='delete_nan_samples'
+    bands_to_delete = ["B2"]
+    what_happens_to_nan='apply_nan_mask'
+    # what_happens_to_nan='delete_nan_samples'
 
     preprocess_geojson_files(identifier, data_dir, what_happens_to_nan, bands_to_delete)
 
-    arr = np.load(r'data/1102.apply_nan_mask/Abies_alba-20.npy')
-    print(arr)
-    print(arr.shape)
+    # arr = np.load(r'data/1102.apply_nan_mask/Abies_alba-20.npy')
+    # print(arr)
+    # print(arr.shape)
