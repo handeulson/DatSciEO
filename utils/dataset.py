@@ -5,6 +5,7 @@ import re
 from matplotlib.container import BarContainer
 
 import matplotlib.pyplot as plt
+from networkx import descendants_at_distance
 import numpy as np
 
 from torch.utils.data import Dataset
@@ -248,13 +249,48 @@ class TreeClassifDataset(Dataset):
         return bar_container_nonzero
 
 
+# TODO: add band information?
+class TreeClassifPreprocessedDataset(Dataset):
+    def __init__(self, data_dir):
+        """
+        A dataset class for the Tree Classification task.
+        Samples need to be created using preprocessing.preprocess_geojson_files() first.
+        
+        """
+        super().__init__()
+        self.data_dir = data_dir
+        self.files = os.listdir(data_dir)
+
+        self.classes = np.unique([re.search("([A-Z][a-z]+_[a-z]+)-", file_).group(1) for file_ in self.files])
+
+    def __len__(self):
+        return len(self.files)
+    
+    def __getitem__(self, index):
+        data = np.load(os.path.join(self.data_dir, self.files[index]))
+        return data
+    
+    def visualize_samples(self, indices, subplots, band_names=["B5", "B4", "B3"], **kwargs):
+        fig, axs = plt.subplots(*subplots, **kwargs)
+        fig.suptitle(f"Tree Samples (bands {list(band_names)})")
+        axs = axs.flatten() if len(indices) != 1 else [axs]
+
+        band_indices = [self.band2index[b_] for b_ in band_names]
+
+        for i_, ax_ in zip(indices, axs):
+            data, label = self[i_]
+            ax_.imshow(data[:, :, band_indices])
+            ax_.set_title(f"{i_}: {self.label_to_classname(label)}")
+        
+        return fig
+
 
 
 # test dataset
 if __name__ == "__main__":
     # test initialization
-    ds = TreeClassifDataset("data", "1102")
-    print("len ds:", len(ds))
+    # ds = TreeClassifDataset("data", "1102")
+    # print("len ds:", len(ds))
     
     # test getitem
     # sample00, label00 = ds[0]
@@ -272,4 +308,8 @@ if __name__ == "__main__":
     # plt.show()
 
     # test histogram
-    ds.band_nan_histogram()
+    # ds.band_nan_histogram()
+
+    dsp = TreeClassifPreprocessedDataset("data/1102_apply_nan_mask_B2")
+    dsp0 = dsp[0]
+    print("data shape:", dsp0.shape)
