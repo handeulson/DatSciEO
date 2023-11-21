@@ -5,11 +5,14 @@ import re
 import sys
 import json
 
+from typing import List
+
+
 ##############################
 #TODO: change numpy array dimensions from (h,w,b) to (b,h,w) for less confusing array visualization 
 #TODO: save all numpy-files with same preprocessing steps in same folder, even though they map different tree species?
 
-def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan: str='keep_nan', bands_to_delete: list[str]=[], verbose = True):
+def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan: str='keep_nan', bands_to_delete: List[str]=[], verbose=True):
     '''
     This function preprocesses the geojson files. The big goal is to create a numpy array for each sample and store them 
     accordingly in a dedicated folder. 
@@ -117,7 +120,7 @@ def file_to_tree_type_name(file_name: str) -> str:
     return tree_type
 
 
-def sample2numpy(sample: dict, bands_to_delete: list[str]) -> np.array:
+def sample2numpy(sample: dict, bands_to_delete: List[str]) -> np.array:
     '''
     This function converts the geojson strcture (dicctionary) to a numpy array
     axis = 0: height
