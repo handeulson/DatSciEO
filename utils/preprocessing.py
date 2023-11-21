@@ -7,6 +7,8 @@ import json
 
 from typing import List
 
+from utils import determine_dimensions
+
 
 ##############################
 #TODO: change numpy array dimensions from (h,w,b) to (b,h,w) for less confusing array visualization 
@@ -75,10 +77,12 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
         file_name = os.path.join(data_dir, f'{tree_type}_{identifier}.geojson')
         with open(file_name) as f: data = json.load(f)
 
+        dimensions = determine_dimensions(data)
+
         # loop over each sample
         for s_, sample in enumerate(data["features"]):
             # create numpy array for sample
-            array = sample2numpy(sample, bands_to_delete)
+            array = sample2numpy(sample, bands_to_delete, *dimensions)
             
             # samples containing nan are not written to disk
             if (what_happens_to_nan == 'delete_nan_samples') and (np.isnan(array).any()):
@@ -120,7 +124,7 @@ def file_to_tree_type_name(file_name: str) -> str:
     return tree_type
 
 
-def sample2numpy(sample: dict, bands_to_delete: List[str]) -> np.array:
+def sample2numpy(sample: dict, bands_to_delete: List[str], w: int=25, h: int=25, b: int=30) -> np.array:
     '''
     This function converts the geojson strcture (dicctionary) to a numpy array
     axis = 0: height
@@ -130,11 +134,7 @@ def sample2numpy(sample: dict, bands_to_delete: List[str]) -> np.array:
     sample: dictionary structure of the geojson file
     bands_to_delete: band names that should not be written to disk
     '''
-
-    # size of arrays
-    b = 30 - len(bands_to_delete)
-    h = 5
-    w = 5
+    b -= len(bands_to_delete)
 
     # delete bands
     properties = sample["properties"]

@@ -9,6 +9,8 @@ import numpy as np
 
 from torch.utils.data import Dataset
 
+from utils import determine_dimensions
+
 
 # TODO: get ID and geometry in export
 # TODO: reshape data?
@@ -78,25 +80,12 @@ class TreeClassifDataset(Dataset):
         s += f"\n  -> Samples: {len(self)}"
         return s
 
-    def _determine_dimension(self, collection):
-        w, h, b = None, None, None
-        for feature_ in collection["features"]:
-            property_names = list(feature_["properties"].keys())
-            for prop_name_ in property_names:
-                rows = feature_["properties"][prop_name_]
-                if rows is not None:
-                    b = len(feature_["properties"])
-                    h = len(feature_["properties"][prop_name_])        # number of rows
-                    w = len(feature_["properties"][prop_name_][0])     # number of columns (values per row)
-                    break
-            if h is not None: break
-        return w, h, b
 
     def determine_dimensions(self):
         w, h, b = None, None, None
         for f_ in self.class_files:
             with open(f_) as f: collection = json.load(f)
-            w, h, b = self._determine_dimension(collection)
+            w, h, b = determine_dimensions(collection)
             if w is not None: break
         
         if w is None:
