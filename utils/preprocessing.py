@@ -7,7 +7,7 @@ import json
 
 from typing import List
 
-from utils import determine_dimensions
+from utils import determine_dimensions, file_to_tree_type_name
 
 
 ##############################
@@ -53,7 +53,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
         sys.exit(f"\nNo geojson-files found in folder {data_dir} or for identifier {identifier}. Terminating.")
 
     # find all tree type names
-    tree_types = [file_to_tree_type_name(fn_) for fn_ in tree_type_files]
+    tree_types = [file_to_tree_type_name(fn_, identifier) for fn_ in tree_type_files]
     if not tree_types:
         sys.exit(f"\nThe found geojson-files don't seem to match the standard naming convention \'<Tree>_<species>_<identifier>.geojson\'. Terminating.")
     
@@ -112,17 +112,6 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
               f'\nAmount of samples written: {sample_information}' +
               f'\nAmount of samples deleted: {delete_information}')
             
-
-
-def file_to_tree_type_name(file_name: str) -> str:
-    '''
-    This function extracts the tree type name for a given geojson file
-
-    file_name: name of geojson file
-    '''
-
-    tree_type = re.search(f"([A-Z][a-z]+_[a-z]+)_{identifier}.geojson", file_name).group(1)
-    return tree_type
 
 
 def sample2numpy(sample: dict, bands_to_delete: List[str], w: int=25, h: int=25, b: int=30) -> np.array:
