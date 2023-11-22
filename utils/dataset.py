@@ -10,7 +10,7 @@ import numpy as np
 
 from torch.utils.data import Dataset
 
-from utils import determine_dimensions
+from utils import determine_dimensions, file_to_tree_type_name, sample_file_to_tree_type
 
 
 # TODO: get ID and geometry in export
@@ -261,15 +261,23 @@ class TreeClassifPreprocessedDataset(Dataset):
         self.data_dir = data_dir
         self.files = os.listdir(data_dir)
 
-        self.classes = np.unique([re.search("([A-Z][a-z]+_[a-z]+)-", file_).group(1) for file_ in self.files])
+        self.classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in self.files]))
 
     def __len__(self):
         return len(self.files)
     
     def __getitem__(self, index):
         data = np.load(os.path.join(self.data_dir, self.files[index]))
-        return data
+        tree_type = sample_file_to_tree_type(self.files[index])
+        class_idx = self.labelname_to_label(tree_type)
+        return data, class_idx
     
+    def labelname_to_label(self, labelname):
+        return self.classes.index(labelname)
+    
+    def label_to_labelname(self, label):
+        return self.classes[label]
+        
     def visualize_samples(self, indices, subplots, band_names=["B5", "B4", "B3"], **kwargs):
         fig, axs = plt.subplots(*subplots, **kwargs)
         fig.suptitle(f"Tree Samples (bands {list(band_names)})")
@@ -311,5 +319,7 @@ if __name__ == "__main__":
     # ds.band_nan_histogram()
 
     dsp = TreeClassifPreprocessedDataset("data/1102_apply_nan_mask_B2")
-    dsp0 = dsp[0]
-    print("data shape:", dsp0.shape)
+    x0, y0 = dsp[0]
+    print("data shape:", x0.shape)
+    print("label:", y0)
+    print("labelname:", dsp.label_to_labelname(y0))
