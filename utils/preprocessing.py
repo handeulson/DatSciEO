@@ -11,9 +11,6 @@ from utils import determine_dimensions
 
 
 ##############################
-#TODO: change numpy array dimensions from (h,w,b) to (b,h,w) for less confusing array visualization 
-#TODO: save all numpy-files with same preprocessing steps in same folder, even though they map different tree species?
-
 def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan: str='keep_nan', bands_to_delete: List[str]=[], verbose=True):
     '''
     This function preprocesses the geojson files. The big goal is to create a numpy array for each sample and store them 
@@ -64,19 +61,22 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
     output_dir = os.path.join(data_dir, f'{identifier}_{what_happens_to_nan}{delete_bands_str}')
     os.makedirs(output_dir, exist_ok = True)
 
-    sample_information = {} # statistical dictionary for output information
+    # statistical dictionary for output information
+    sample_information = {}
     delete_information = {}
 
     # loop over all tree type names
     for tree_type in tree_types:
 
-        amount_of_samples = 0 # initialization of statistical dictionary for output information
+        # initialization of statistical dictionary for output information
+        amount_of_samples = 0
         amount_of_samples_deleted = 0
 
         # open geojson-file
         file_name = os.path.join(data_dir, f'{tree_type}_{identifier}.geojson')
         with open(file_name) as f: data = json.load(f)
 
+        # determine dimensions of data
         dimensions = determine_dimensions(data)
 
         # loop over each sample
@@ -86,7 +86,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
             
             # samples containing nan are not written to disk
             if (what_happens_to_nan == 'delete_nan_samples') and (np.isnan(array).any()):
-                amount_of_samples_deleted += 1
+                amount_of_samples_deleted += 1 # counter for samples
                 continue
             
             # nan mask is concatenated to numpy array (0 for nan, 1 for numeric value)
@@ -99,7 +99,8 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
             amount_of_samples += 1 # counter for samples
             np.save(os.path.join(output_dir, f'{tree_type}-{s_}.npy'), array, allow_pickle=False)
 
-        sample_information[tree_type] = amount_of_samples # fill statistical dictionary for output information
+        # fill statistical dictionary for output information
+        sample_information[tree_type] = amount_of_samples
         delete_information[tree_type] = amount_of_samples_deleted
         
         if verbose:
@@ -142,11 +143,12 @@ def sample2numpy(sample: dict, bands_to_delete: List[str], w: int=25, h: int=25,
         del properties[key]
 
     # fill up array
-    array = np.full((h, w, b), np.nan) #TODO: change numpy array dimensions from (h,w,b) to (b,h,w) for less confusing array visualization 
+    #TODO?: change numpy array dimensions from (h,w,b) to (b,h,w) for less confusing array visualization 
+    array = np.full((h, w, b), np.nan)
     for b_, band in enumerate(properties.values()):
         if band is None: continue       
         for r_, row in enumerate(band):
-            array[r_, :, b_] = row #TODO: change numpy array dimensions from (h,w,b) to (b,h,w) for less confusing array visualization 
+            array[r_, :, b_] = row
     return array
 
 
@@ -157,8 +159,8 @@ if __name__ == "__main__":
     identifier = 1102
     data_dir = 'data'
     bands_to_delete = ["B2"]
-    what_happens_to_nan='apply_nan_mask'
-    # what_happens_to_nan='delete_nan_samples'
+    #what_happens_to_nan='apply_nan_mask'
+    what_happens_to_nan='delete_nan_samples'
 
     preprocess_geojson_files(identifier, data_dir, what_happens_to_nan, bands_to_delete)
 
