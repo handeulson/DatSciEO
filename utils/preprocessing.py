@@ -1,9 +1,9 @@
 import numpy as np
 import os
 import glob
-import re
 import sys
 import json
+from functools import partial
 
 from typing import List
 
@@ -11,7 +11,8 @@ from utils import determine_dimensions, file_to_tree_type_name
 
 
 ##############################
-def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan: str='keep_nan', bands_to_delete: List[str]=[], verbose=True):
+def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan: str='keep_nan', bands_to_delete: List[str]=[], 
+                             transformer_for_numpy_array: partial = None, verbose: bool=True):
     '''
     This function preprocesses the geojson files. The big goal is to create a numpy array for each sample and store them 
     accordingly in a dedicated folder. 
@@ -20,14 +21,17 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
                 Only geojson-files with this identifier tag are preprocessed
     data_dir: folder where the geojson-files are stored
     what_happens_to_nan: preprocessing method of what happens to nan-values in the numpy array.
-                         <keep_nan>:            all nan values are kept DEFAULT OPTION
-                         <apply_nan_mask>:      for each band, a mask is generated (0 for nan, 1 for numeric) and concatenated
-                                                to the original array. Number of bands are doubled.
+                         <keep_nan> DEFAULT:    all nan values are kept
+                         <apply_nan_mask>:      for each band, a mask is generated (0 for nan, 1 for numeric) and 
+                                                concatenated to the original array. Number of bands are doubled.
                          <delete_nan_samples>:  samples that contain nan are not written to disk
-    bands_to_delete: band names in this list are not considered when writting the arrays to disk. DEFAULT OPTION is no bands.
+    bands_to_delete -> DEFAULT None: band names in this list are not considered when writting the arrays to disk. 
+    transformer_for_numpy_array -> DEFAULT None: transformer function that transforms numpy array before
+                                                 preprocessing method is applied (e.g. np.nanmean, np.nanmedian,...)
 
     The arrays are written as .npy-files to disk in certain folders. The folders have the following naming convention:
-    "<identifier>_<what_happens_to_nan>_<bands_to_delete>", whereas ".<bands_to_delete>" is not added for no bands.
+    "<identifier>_<what_happens_to_nan>_<name_of_transformer_function>_<bands_to_delete>", 
+    whereas ".<bands_to_delete>" is not added for no bands.
     '''
 
     # check if <what_happens_to_nan> argument contains valid element
@@ -44,7 +48,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
         delete_bands_str = '_' + '-'.join(bands_to_delete) # later used for naming folder
         valid_bands = [x for x in valid_bands if x not in bands_to_delete]
     else:
-        sys.exit(f'\nSome given bands {bands_to_delete} are not part of the valid band names: {valid_bands}.')
+        sys.exit(f'\nSome given bands {bands_to_delete} are not part of the valid band names: {valid_bands}. Terminating.')
 
     # find all geojson files based on identifier
     search = os.path.join(data_dir, f"[A-Z]*_{identifier}.geojson")
@@ -58,7 +62,8 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
         sys.exit(f"\nThe found geojson-files don't seem to match the standard naming convention \'<Tree>_<species>_<identifier>.geojson\'. Terminating.")
     
     # if not existent, create folder to save numpy arrays
-    output_dir = os.path.join(data_dir, f'{identifier}_{what_happens_to_nan}{delete_bands_str}')
+    output_dir = os.path.join(data_dir, f'{identifier}_{what_happens_to_nan}_' + 
+                              f'{transformer_for_numpy_array.func.__name__}{delete_bands_str}')
     os.makedirs(output_dir, exist_ok = True)
 
     # statistical dictionary for output information
@@ -83,6 +88,13 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
         for s_, sample in enumerate(data["features"]):
             # create numpy array for sample
             array = sample2numpy(sample, bands_to_delete, *dimensions)
+
+            # transformer with partial is applied to the array (e.g. np.nanmean)
+            if transformer_for_numpy_array is not None:
+                try:
+                    array = transformer_for_numpy_array(array)
+                except Exception as err:
+                    sys.exit(f"\nThe transformer threw an unexpected error {type(err)}: {err}. Terminating.")
             
             # samples containing nan are not written to disk
             if (what_happens_to_nan == 'delete_nan_samples') and (np.isnan(array).any()):
@@ -107,10 +119,13 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
             print(f'\n<{tree_type}> {amount_of_samples} samples written to disk.')
 
     if verbose:
-        print(f'\nIdentifier: {identifier}\nChosen processing method: {what_happens_to_nan}' +
-              f'\nNot considered bands: {bands_to_delete}\nTree types considered: {tree_types}' + 
+        print(f'\nIdentifier: {identifier}' + 
+              f'\nChosen processing method: {what_happens_to_nan}' +
+              f'\nNot considered bands: {bands_to_delete}' +
+              f'\nTransformer: {transformer_for_numpy_array}' +
+              f'\nTree types considered: {tree_types}' + 
               f'\nAmount of samples written: {sample_information}' +
-              f'\nAmount of samples deleted: {delete_information}')
+              f'\nAmount of samples deleted: {delete_information}\n')
             
 
 
@@ -147,12 +162,23 @@ def sample2numpy(sample: dict, bands_to_delete: List[str], w: int=25, h: int=25,
 if __name__ == "__main__":
     identifier = 1102
     data_dir = 'data'
+
     bands_to_delete = ["B2"]
+
+    # Preproessing options ################
     #what_happens_to_nan='apply_nan_mask'
     what_happens_to_nan='delete_nan_samples'
+    #what_happens_to_nan='keep_nan'
 
-    preprocess_geojson_files(identifier, data_dir, what_happens_to_nan, bands_to_delete)
+    # Transformer options ################
+    #transformer = None
+    transformer = partial(np.nanmean, axis=(0,1))  # mean per band excluding nan values
+    #transformer = partial(np.nanmedian, axis=(0,1)) # median per band excluding nan values
 
-    # arr = np.load(r'data/1102.apply_nan_mask/Abies_alba-20.npy')
-    # print(arr)
-    # print(arr.shape)
+    preprocess_geojson_files(identifier, data_dir, what_happens_to_nan, bands_to_delete, 
+                             transformer_for_numpy_array=transformer)
+
+    # Checking one sample
+    arr = np.load(r'data/1102_delete_nan_samples_B2/Abies_alba-21.npy')
+    print(arr)
+    print(arr.shape)

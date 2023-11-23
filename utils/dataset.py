@@ -5,7 +5,6 @@ import re
 from matplotlib.container import BarContainer
 
 import matplotlib.pyplot as plt
-from networkx import descendants_at_distance
 import numpy as np
 
 from torch.utils.data import Dataset
