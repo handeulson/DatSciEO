@@ -2,6 +2,7 @@ import json
 import os
 import glob
 import re
+from typing import Iterable
 from matplotlib.container import BarContainer
 
 import matplotlib.pyplot as plt
@@ -9,7 +10,7 @@ import numpy as np
 
 from torch.utils.data import Dataset
 
-from utils import determine_dimensions, file_to_tree_type_name, sample_file_to_tree_type
+from .utils import determine_dimensions, file_to_tree_type_name, sample_file_to_tree_type
 
 
 # TODO: get ID and geometry in export
@@ -250,17 +251,27 @@ class TreeClassifDataset(Dataset):
 
 # TODO: add band information?
 class TreeClassifPreprocessedDataset(Dataset):
-    def __init__(self, data_dir):
+    def __init__(self, data_dir:str, torchify:bool=False, indices:Iterable=None):
         """
         A dataset class for the Tree Classification task.
         Samples need to be created using preprocessing.preprocess_geojson_files() first.
+
+        :param data_dir: Path to the preprocessed data directory
+        :param torchify: Whether to flip the data dimensions for torch. Will be removed soon, after Chris
+                            implements the flipping per default in the preprocessing.
+        :param indices: Optional array indices to load a subset of the dataset; useful for testing purposes
         
         """
         super().__init__()
         self.data_dir = data_dir
-        self.files = os.listdir(data_dir)
+        self.torchify = torchify
 
-        self.classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in self.files]))
+        self.files = [file_ for file_ in os.listdir(data_dir) if file_.endswith(".npy")]
+        if indices: self.files = [self.files[idx] for idx in indices]
+
+
+        self.classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in os.listdir(data_dir) if file_.endswith(".npy")]))
+        self._set_dimensions()
 
     def __len__(self):
         return len(self.files)
@@ -269,7 +280,19 @@ class TreeClassifPreprocessedDataset(Dataset):
         data = np.load(os.path.join(self.data_dir, self.files[index]))
         tree_type = sample_file_to_tree_type(self.files[index])
         class_idx = self.labelname_to_label(tree_type)
+        
+        if self.torchify:
+            # size as saved by preprocessing: W, H, C
+            # size as required by torch: C, H, W
+            data = np.moveaxis(data, [0,1,2], [2,1,0])
         return data, class_idx
+    
+    def _set_dimensions(self):
+        x = np.load(os.path.join(self.data_dir, self.files[0]))
+        print(os.path.join(self.data_dir, self.files[0]))
+        print(x)
+        self.width, self.height, self.depth = x.shape
+        self.n_classes = len(self.classes)
     
     def labelname_to_label(self, labelname):
         return self.classes.index(labelname)

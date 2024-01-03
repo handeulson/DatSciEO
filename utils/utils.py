@@ -31,5 +31,8 @@ def file_to_tree_type_name(file_name: str, identifier: str) -> str:
 
 
 def sample_file_to_tree_type(file_name: str) -> str:
-    tree_type = re.search("([A-Z][a-z]+_[a-z]+)-", file_name).group(1)
+    try:
+        tree_type = re.search("([A-Z][a-z]+_[a-z]+)-", file_name).group(1)
+    except:
+        raise AttributeError(f"Error while parsing filename '{file_name}'")
     return tree_type

@@ -1,10 +1,33 @@
 /***        SETTINGS        ***/
 
 // specify  a dataset identifier for this run
-var dataset_identifier = "1102"
+var dataset_identifier = "1123"
 // specify species filters
-var species_names = ["Abies alba", "Picea abies", "Ulmus glabra"];
-var leaf_types = [111, 111, 114]; // Code 111 means closed needleleaf forest and 114 means closed broadleaf forest
+var species_names = [
+  "Picea abies",
+  "Fagus sylvatica",
+  "Pinus sylvestris",
+  "Quercus robur",
+  "Betula pendula",
+  "Quercus petraea",
+  "Fraxinus excelsior",
+  "Acer pseudoplatanus",
+  "Sorbus aucuparia",
+  "Carpinus betulus"
+  ];
+
+var leaf_types = [
+  111,
+  114,
+  111,
+  114,
+  114,
+  114,
+  114,
+  114,
+  114,
+  114
+  ]; // Code 111 means closed needleleaf forest and 114 means closed broadleaf forest
 
 
 // specify which bands to export
@@ -135,7 +158,7 @@ for (var i = 0; i < species_names.length; i++) {
   } else  {
     color = "black"
   }
-
+  
   print("current species name and leaf type:", species_name, leaf_type)
   var species = forest.filterMetadata('SPECIES NAME','equals', species_name);
   print("after species filter:", species.size())

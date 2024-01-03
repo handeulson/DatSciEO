@@ -63,7 +63,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
     
     # if not existent, create folder to save numpy arrays
     output_dir = os.path.join(data_dir, f'{identifier}_{what_happens_to_nan}_' + 
-                              f'{transformer_for_numpy_array.func.__name__}{delete_bands_str}')
+                              f'{transformer_for_numpy_array.func.__name__ if transformer_for_numpy_array else ""}{delete_bands_str}')
     os.makedirs(output_dir, exist_ok = True)
 
     # statistical dictionary for output information
@@ -116,7 +116,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
         delete_information[tree_type] = amount_of_samples_deleted
         
         if verbose:
-            print(f'\n<{tree_type}> {amount_of_samples} samples written to disk.')
+            print(f'<{tree_type:<30}> {amount_of_samples} samples written to disk.')
 
     if verbose:
         print(f'\nIdentifier: {identifier}' + 
